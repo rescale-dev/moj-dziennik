@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc *)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(pkill -f \"expo start\")",
+      "Bash(lsof -ti:8081)",
+      "Bash(xargs kill -9)",
+      "Bash(curl -s http://localhost:8081/ --max-time 3 -o /dev/null -w \"%{http_code}\")"
+    ]
+  }
+}
