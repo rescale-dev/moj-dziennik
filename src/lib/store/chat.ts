@@ -1,103 +1,59 @@
 "use client";
 
-import { nanoid } from "nanoid";
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import * as api from "../supabase/chats";
+import type { Chat, ChatRole } from "../supabase/chats";
 
-export type ChatRole = "user" | "assistant";
-export type ChatMessage = { role: ChatRole; text: string };
-export type Chat = {
-  id: string;
-  title: string;
-  createdAt: string;
-  updatedAt: string;
-  messages: ChatMessage[];
-};
+export type { Chat, ChatMessage, ChatRole } from "../supabase/chats";
 
-/** Przykładowe historie czatów (placeholdery — prawdziwego AI jeszcze nie ma). */
-const SEED: Chat[] = [
-  {
-    id: "seed-1",
-    title: "Jak poprawić nastrój wieczorem?",
-    createdAt: "2026-06-07T20:10:00.000Z",
-    updatedAt: "2026-06-07T20:14:00.000Z",
-    messages: [
-      { role: "user", text: "Mam gorszy wieczór, co mogę zrobić?" },
-      {
-        role: "assistant",
-        text: "Spróbuj krótkiego spaceru i zapisz jedną rzecz, za którą jesteś dziś wdzięczny. (wersja demonstracyjna)",
-      },
-    ],
-  },
-  {
-    id: "seed-2",
-    title: "Podsumuj mój tydzień",
-    createdAt: "2026-06-05T09:00:00.000Z",
-    updatedAt: "2026-06-05T09:02:00.000Z",
-    messages: [
-      { role: "user", text: "Podsumuj mój nastrój z ostatniego tygodnia." },
-      {
-        role: "assistant",
-        text: "W tym tygodniu przeważał spokój, z jednym trudniejszym dniem. (wersja demonstracyjna)",
-      },
-    ],
-  },
-  {
-    id: "seed-3",
-    title: "Pomysły na wpis",
-    createdAt: "2026-06-02T18:30:00.000Z",
-    updatedAt: "2026-06-02T18:31:00.000Z",
-    messages: [
-      { role: "user", text: "O czym mogę dziś napisać?" },
-      {
-        role: "assistant",
-        text: "Napisz o jednym małym sukcesie i jednej rzeczy, której się nauczyłeś. (wersja demonstracyjna)",
-      },
-    ],
-  },
-];
+type Status = "idle" | "loading" | "ready" | "error";
 
 type ChatState = {
   chats: Chat[];
-  /** Tworzy nowy czat (lub zwraca istniejący pusty na górze) i zwraca jego id. */
-  createChat: () => string;
-  addMessage: (id: string, msg: ChatMessage) => void;
+  status: Status;
+  load: () => Promise<void>;
+  clear: () => void;
+  createChat: () => Promise<string>;
+  addMessage: (chatId: string, role: ChatRole, text: string) => Promise<void>;
 };
 
-export const useChatStore = create<ChatState>()(
-  persist(
-    (set, get) => ({
-      chats: SEED,
-      createChat: () => {
-        const top = get().chats[0];
-        if (top && top.messages.length === 0) return top.id;
-        const id = nanoid();
-        const now = new Date().toISOString();
-        set({
-          chats: [
-            { id, title: "Nowy czat", createdAt: now, updatedAt: now, messages: [] },
-            ...get().chats,
-          ],
-        });
-        return id;
-      },
-      addMessage: (id, msg) =>
-        set({
-          chats: get().chats.map((c) =>
-            c.id === id
-              ? {
-                  ...c,
-                  messages: [...c.messages, msg],
-                  updatedAt: new Date().toISOString(),
-                  title:
-                    c.messages.length === 0 && msg.role === "user"
-                      ? msg.text.slice(0, 40)
-                      : c.title,
-                }
-              : c,
-          ),
-        }),
-    }),
-    { name: "moj-dziennik:chats", version: 1 },
-  ),
-);
+export const useChatStore = create<ChatState>((set, get) => ({
+  chats: [],
+  status: "idle",
+  load: async () => {
+    set({ status: "loading" });
+    try {
+      const chats = await api.fetchChats();
+      set({ chats, status: "ready" });
+    } catch {
+      set({ status: "error" });
+    }
+  },
+  clear: () => set({ chats: [], status: "idle" }),
+  createChat: async () => {
+    const top = get().chats[0];
+    if (top && top.messages.length === 0) return top.id;
+    const chat = await api.createChat();
+    set({ chats: [chat, ...get().chats] });
+    return chat.id;
+  },
+  addMessage: async (chatId, role, text) => {
+    const msg = await api.addMessage(chatId, role, text);
+    const chat = get().chats.find((c) => c.id === chatId);
+    const isFirstUser = !!chat && chat.messages.length === 0 && role === "user";
+    const newTitle = isFirstUser ? text.slice(0, 40) : undefined;
+    await api.bumpChat(chatId, newTitle);
+    set({
+      chats: get().chats.map((c) =>
+        c.id === chatId
+          ? {
+              ...c,
+              title: newTitle ?? c.title,
+              updatedAt: new Date().toISOString(),
+              messages: [...c.messages, msg],
+            }
+          : c,
+      ),
+    });
+  },
+}));

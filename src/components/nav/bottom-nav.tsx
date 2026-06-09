@@ -4,6 +4,7 @@ import { BarChart3, Home, MessagesSquare, Plus, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+import { toast } from "sonner";
 import { AiChatSheet } from "@/components/chat/ai-chat-sheet";
 import { ChatHistorySheet } from "@/components/chat/chat-history-sheet";
 import { useChatStore } from "@/lib/store/chat";
@@ -19,11 +20,15 @@ export function BottomNav() {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
 
-  const startNewChat = () => {
-    const id = createChat();
-    setActiveChatId(id);
-    setHistoryOpen(false);
-    setAiOpen(true);
+  const startNewChat = async () => {
+    try {
+      const id = await createChat();
+      setActiveChatId(id);
+      setHistoryOpen(false);
+      setAiOpen(true);
+    } catch {
+      toast.error("Nie udało się utworzyć czatu");
+    }
   };
 
   const openChat = (id: string) => {

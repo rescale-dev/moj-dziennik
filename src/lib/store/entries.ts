@@ -1,44 +1,46 @@
 "use client";
 
-import { nanoid } from "nanoid";
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
 import type { EntryInput } from "../repository";
+import * as api from "../supabase/entries";
 import type { Entry } from "../types";
+
+type Status = "idle" | "loading" | "ready" | "error";
 
 type EntriesState = {
   entries: Entry[];
-  addEntry: (input: EntryInput) => Entry;
-  updateEntry: (id: string, patch: Partial<EntryInput>) => void;
-  removeEntry: (id: string) => void;
+  status: Status;
+  load: () => Promise<void>;
+  clear: () => void;
+  addEntry: (input: EntryInput) => Promise<Entry>;
+  updateEntry: (id: string, patch: Partial<EntryInput>) => Promise<void>;
+  removeEntry: (id: string) => Promise<void>;
 };
 
-export const useEntriesStore = create<EntriesState>()(
-  persist(
-    (set, get) => ({
-      entries: [],
-      addEntry: (input) => {
-        const now = new Date().toISOString();
-        const entry: Entry = {
-          id: nanoid(),
-          createdAt: now,
-          updatedAt: now,
-          ...input,
-        };
-        set({ entries: [...get().entries, entry] });
-        return entry;
-      },
-      updateEntry: (id, patch) =>
-        set({
-          entries: get().entries.map((e) =>
-            e.id === id ? { ...e, ...patch, updatedAt: new Date().toISOString() } : e,
-          ),
-        }),
-      removeEntry: (id) => set({ entries: get().entries.filter((e) => e.id !== id) }),
-    }),
-    {
-      name: "moj-dziennik:entries",
-      version: 1,
-    },
-  ),
-);
+export const useEntriesStore = create<EntriesState>((set, get) => ({
+  entries: [],
+  status: "idle",
+  load: async () => {
+    set({ status: "loading" });
+    try {
+      const entries = await api.fetchEntries();
+      set({ entries, status: "ready" });
+    } catch {
+      set({ status: "error" });
+    }
+  },
+  clear: () => set({ entries: [], status: "idle" }),
+  addEntry: async (input) => {
+    const entry = await api.insertEntry(input);
+    set({ entries: [...get().entries, entry] });
+    return entry;
+  },
+  updateEntry: async (id, patch) => {
+    const updated = await api.updateEntry(id, patch);
+    set({ entries: get().entries.map((e) => (e.id === id ? updated : e)) });
+  },
+  removeEntry: async (id) => {
+    await api.deleteEntry(id);
+    set({ entries: get().entries.filter((e) => e.id !== id) });
+  },
+}));

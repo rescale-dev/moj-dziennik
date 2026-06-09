@@ -2,6 +2,7 @@
 
 import { Send, Sparkles } from "lucide-react";
 import { useMemo, useState } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -30,12 +31,16 @@ export function AiChatSheet({
   const chat = useMemo(() => chats.find((c) => c.id === chatId), [chats, chatId]);
   const [input, setInput] = useState("");
 
-  const send = () => {
+  const send = async () => {
     const text = input.trim();
     if (!text || !chatId) return;
-    addMessage(chatId, { role: "user", text });
-    addMessage(chatId, { role: "assistant", text: CANNED_REPLY });
     setInput("");
+    try {
+      await addMessage(chatId, "user", text);
+      await addMessage(chatId, "assistant", CANNED_REPLY);
+    } catch {
+      toast.error("Nie udało się wysłać wiadomości");
+    }
   };
 
   return (
@@ -60,8 +65,8 @@ export function AiChatSheet({
               lub poproś o pomysł na wpis. (wersja demonstracyjna)
             </Bubble>
           ) : (
-            chat.messages.map((m, i) => (
-              <Bubble key={i} role={m.role}>
+            chat.messages.map((m) => (
+              <Bubble key={m.id} role={m.role}>
                 {m.text}
               </Bubble>
             ))

@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import { NewEntryDialog } from "@/components/entry/new-entry-dialog";
-import { BottomNav } from "@/components/nav/bottom-nav";
+import { AuthGate } from "@/components/auth/auth-gate";
+import { AuthProvider } from "@/components/auth/auth-provider";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
@@ -43,12 +43,12 @@ export default function RootLayout({
           enableSystem={false}
           disableTransitionOnChange
         >
-          <div className="mx-auto flex min-h-dvh w-full max-w-md flex-col bg-background">
-            <main className="flex-1 pb-28">{children}</main>
-            <BottomNav />
-          </div>
-          <NewEntryDialog />
-          <Toaster position="top-center" richColors />
+          <AuthProvider>
+            <div className="mx-auto flex min-h-dvh w-full max-w-md flex-col bg-background">
+              <AuthGate>{children}</AuthGate>
+            </div>
+            <Toaster position="top-center" richColors />
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>

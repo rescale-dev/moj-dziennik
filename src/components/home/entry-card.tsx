@@ -93,9 +93,13 @@ export function EntryCard({ entry }: { entry: Entry }) {
           <AlertDialogFooter>
             <AlertDialogCancel>Anuluj</AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => {
-                removeEntry(entry.id);
-                toast.success("Wpis usunięty");
+              onClick={async () => {
+                try {
+                  await removeEntry(entry.id);
+                  toast.success("Wpis usunięty");
+                } catch {
+                  toast.error("Nie udało się usunąć wpisu");
+                }
               }}
             >
               Usuń

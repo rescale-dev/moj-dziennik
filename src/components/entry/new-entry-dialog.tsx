@@ -54,7 +54,9 @@ function EntryForm({
 
   const targetDate = editing ? editing.date : activeDate;
 
-  const handleSave = () => {
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
     if (!mood) {
       toast.error("Wybierz nastrój");
       return;
@@ -63,20 +65,25 @@ function EntryForm({
     const hasContent = text.length > 0;
     const contentJSON = hasContent ? draft.current.json : null;
 
-    if (editing) {
-      updateEntry(editing.id, { mood, contentJSON, contentText: text });
-      toast.success("Zapisano zmiany");
-    } else {
-      addEntry({ date: targetDate, mood, contentJSON, contentText: text });
-      const dates = useEntriesStore.getState().entries.map((e) => e.date);
-      const milestone = reachedMilestone(computeStreak(dates).current);
-      if (milestone) {
-        toast.success(`🔥 ${milestone} dni z rzędu! Tak trzymaj!`);
+    setSaving(true);
+    try {
+      if (editing) {
+        await updateEntry(editing.id, { mood, contentJSON, contentText: text });
+        toast.success("Zapisano zmiany");
       } else {
-        toast.success("Wpis zapisany");
+        await addEntry({ date: targetDate, mood, contentJSON, contentText: text });
+        const dates = useEntriesStore.getState().entries.map((e) => e.date);
+        const milestone = reachedMilestone(computeStreak(dates).current);
+        toast.success(
+          milestone ? `🔥 ${milestone} dni z rzędu! Tak trzymaj!` : "Wpis zapisany",
+        );
       }
+      onDone();
+    } catch {
+      toast.error("Nie udało się zapisać. Spróbuj ponownie.");
+    } finally {
+      setSaving(false);
     }
-    onDone();
   };
 
   return (
@@ -101,11 +108,16 @@ function EntryForm({
       />
 
       <DialogFooter className="gap-2 sm:gap-2">
-        <Button variant="ghost" className="rounded-full" onClick={onDone}>
+        <Button
+          variant="ghost"
+          className="rounded-full"
+          onClick={onDone}
+          disabled={saving}
+        >
           Anuluj
         </Button>
-        <Button className="rounded-full" onClick={handleSave}>
-          Zapisz
+        <Button className="rounded-full" onClick={handleSave} disabled={saving}>
+          {saving ? "Zapisywanie…" : "Zapisz"}
         </Button>
       </DialogFooter>
     </>

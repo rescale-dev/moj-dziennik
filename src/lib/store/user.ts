@@ -1,24 +1,43 @@
 "use client";
 
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import * as api from "../supabase/profile";
 import type { User } from "../types";
 
 type UserState = {
   user: User;
-  setName: (name: string) => void;
-  setAvatar: (avatarUrl?: string) => void;
+  load: (userId: string, fallbackName: string) => Promise<void>;
+  clear: () => void;
+  setName: (name: string) => Promise<void>;
+  setAvatarFile: (file: File) => Promise<void>;
+  removeAvatar: () => Promise<void>;
 };
 
-/** Mock zalogowanego użytkownika — logowanie to placeholder w MVP.
- *  Zdjęcie trzymamy jako data URL w localStorage. */
-export const useUserStore = create<UserState>()(
-  persist(
-    (set, get) => ({
-      user: { id: "local-user", name: "Damian" },
-      setName: (name) => set({ user: { ...get().user, name } }),
-      setAvatar: (avatarUrl) => set({ user: { ...get().user, avatarUrl } }),
-    }),
-    { name: "moj-dziennik:user", version: 1 },
-  ),
-);
+const EMPTY: User = { id: "", name: "" };
+
+export const useUserStore = create<UserState>((set, get) => ({
+  user: EMPTY,
+  load: async (userId, fallbackName) => {
+    const user = await api.fetchOrCreateProfile(userId, fallbackName);
+    set({ user });
+  },
+  clear: () => set({ user: EMPTY }),
+  setName: async (name) => {
+    const { id } = get().user;
+    if (!id) return;
+    set({ user: { ...get().user, name } });
+    await api.updateName(id, name);
+  },
+  setAvatarFile: async (file) => {
+    const { id } = get().user;
+    if (!id) return;
+    const url = await api.uploadAvatar(id, file);
+    set({ user: { ...get().user, avatarUrl: url } });
+  },
+  removeAvatar: async () => {
+    const { id } = get().user;
+    if (!id) return;
+    await api.removeAvatar(id);
+    set({ user: { ...get().user, avatarUrl: undefined } });
+  },
+}));

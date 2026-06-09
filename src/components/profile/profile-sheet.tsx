@@ -1,8 +1,9 @@
 "use client";
 
-import { Bell, Camera, ChevronRight, Cloud, LogIn, Lock, Trash2 } from "lucide-react";
-import { useRef } from "react";
+import { Bell, Camera, ChevronRight, Cloud, Lock, LogOut, Trash2 } from "lucide-react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
+import { useAuth } from "@/components/auth/auth-provider";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,7 +16,6 @@ import {
 import { useUserStore } from "@/lib/store/user";
 
 const SETTINGS = [
-  { icon: LogIn, label: "Logowanie i konto" },
   { icon: Bell, label: "Przypomnienia" },
   { icon: Cloud, label: "Kopia w chmurze" },
   { icon: Lock, label: "PIN / Face ID" },
@@ -30,25 +30,47 @@ export function ProfileSheet({
 }) {
   const user = useUserStore((s) => s.user);
   const setName = useUserStore((s) => s.setName);
-  const setAvatar = useUserStore((s) => s.setAvatar);
+  const setAvatarFile = useUserStore((s) => s.setAvatarFile);
+  const removeAvatar = useUserStore((s) => s.removeAvatar);
+  const { email, signOut } = useAuth();
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const initials = user.name.trim().slice(0, 2).toUpperCase();
+  // Synchronizacja pola z profilem po załadowaniu (wzorzec setState-w-renderze).
+  const [name, setLocalName] = useState(user.name);
+  const [syncedName, setSyncedName] = useState(user.name);
+  if (user.name !== syncedName) {
+    setSyncedName(user.name);
+    setLocalName(user.name);
+  }
 
-  const onPickFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const initials = (user.name || email || "?").trim().slice(0, 2).toUpperCase();
+
+  const saveName = async () => {
+    const trimmed = name.trim();
+    if (trimmed === user.name) return;
+    try {
+      await setName(trimmed);
+    } catch {
+      toast.error("Nie udało się zapisać imienia");
+    }
+  };
+
+  const onPickFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (!file.type.startsWith("image/")) {
       toast.error("Wybierz plik graficzny");
+      e.target.value = "";
       return;
     }
-    const reader = new FileReader();
-    reader.onload = () => {
-      setAvatar(reader.result as string);
+    try {
+      await setAvatarFile(file);
       toast.success("Zdjęcie zaktualizowane");
-    };
-    reader.readAsDataURL(file);
-    e.target.value = "";
+    } catch {
+      toast.error("Nie udało się wgrać zdjęcia");
+    } finally {
+      e.target.value = "";
+    }
   };
 
   return (
@@ -97,9 +119,13 @@ export function ProfileSheet({
                 variant="ghost"
                 size="sm"
                 className="rounded-full text-muted-foreground"
-                onClick={() => {
-                  setAvatar(undefined);
-                  toast.success("Zdjęcie usunięte");
+                onClick={async () => {
+                  try {
+                    await removeAvatar();
+                    toast.success("Zdjęcie usunięte");
+                  } catch {
+                    toast.error("Nie udało się usunąć zdjęcia");
+                  }
                 }}
               >
                 <Trash2 className="size-4" />
@@ -115,16 +141,29 @@ export function ProfileSheet({
           </label>
           <Input
             id="profile-name"
-            value={user.name}
-            onChange={(e) => setName(e.target.value)}
+            value={name}
+            onChange={(e) => setLocalName(e.target.value)}
+            onBlur={saveName}
             className="rounded-xl"
           />
         </div>
 
         <div className="space-y-1 px-4 pb-2">
           <p className="px-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Ustawienia
+            Konto
           </p>
+          <div className="flex items-center gap-3 rounded-xl p-3">
+            <span className="flex-1 truncate text-sm text-muted-foreground">{email}</span>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="rounded-full text-muted-foreground"
+              onClick={signOut}
+            >
+              <LogOut className="size-4" />
+              Wyloguj
+            </Button>
+          </div>
           {SETTINGS.map(({ icon: Icon, label }) => (
             <button
               key={label}
