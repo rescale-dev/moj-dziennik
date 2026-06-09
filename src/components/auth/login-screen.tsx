@@ -5,7 +5,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { supabase } from "@/lib/supabase/client";
+import { setRemember as setRememberFlag, supabase } from "@/lib/supabase/client";
 
 type Mode = "signin" | "signup";
 
@@ -14,12 +14,14 @@ export function LoginScreen() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [remember, setRemember] = useState(true);
   const [loading, setLoading] = useState(false);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim() || !password) return;
     setLoading(true);
+    setRememberFlag(remember);
     try {
       if (mode === "signin") {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
@@ -88,6 +90,15 @@ export function LoginScreen() {
           required
           minLength={6}
         />
+        <label className="flex cursor-pointer items-center gap-2 px-1 py-1 text-sm text-muted-foreground">
+          <input
+            type="checkbox"
+            checked={remember}
+            onChange={(e) => setRemember(e.target.checked)}
+            className="size-4 rounded accent-primary"
+          />
+          Zapamiętaj mnie
+        </label>
         <Button type="submit" className="w-full rounded-full" disabled={loading}>
           {loading
             ? "Proszę czekać…"

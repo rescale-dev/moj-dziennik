@@ -66,7 +66,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     email: session?.user.email ?? null,
     loading,
     signOut: async () => {
-      await supabase.auth.signOut();
+      try {
+        await supabase.auth.signOut({ scope: "local" });
+      } catch {
+        // nawet przy błędzie sieci czyścimy sesję lokalnie
+      }
+      setSession(null);
+      clearAll();
     },
   };
 

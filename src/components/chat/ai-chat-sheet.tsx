@@ -11,11 +11,11 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { useDayEntries } from "@/lib/hooks";
 import { useChatStore } from "@/lib/store/chat";
+import { useUiStore } from "@/lib/store/ui";
+import { supabase } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
-
-const CANNED_REPLY =
-  "To wersja demonstracyjna asystenta — prawdziwy czat z AI pojawi się wkrótce. 🙂";
 
 export function AiChatSheet({
   open,
@@ -29,26 +29,57 @@ export function AiChatSheet({
   const chats = useChatStore((s) => s.chats);
   const addMessage = useChatStore((s) => s.addMessage);
   const chat = useMemo(() => chats.find((c) => c.id === chatId), [chats, chatId]);
+  const activeDate = useUiStore((s) => s.activeDate);
+  const dayEntries = useDayEntries(activeDate);
   const [input, setInput] = useState("");
+  const [sending, setSending] = useState(false);
 
   const send = async () => {
     const text = input.trim();
-    if (!text || !chatId) return;
+    if (!text || !chatId || sending) return;
     setInput("");
+
+    const history = (chat?.messages ?? []).map((m) => ({ role: m.role, text: m.text }));
     try {
       await addMessage(chatId, "user", text);
-      await addMessage(chatId, "assistant", CANNED_REPLY);
     } catch {
       toast.error("Nie udało się wysłać wiadomości");
+      return;
+    }
+
+    setSending(true);
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session?.access_token ?? ""}`,
+        },
+        body: JSON.stringify({
+          messages: [...history, { role: "user", text }],
+          activeDate,
+          openDayEntries: dayEntries.map((e) => ({
+            mood: e.mood,
+            contentText: e.contentText,
+          })),
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.reply) throw new Error(json.error ?? "error");
+      await addMessage(chatId, "assistant", json.reply);
+    } catch {
+      toast.error("Nie udało się połączyć z asystentem. Spróbuj ponownie.");
+    } finally {
+      setSending(false);
     }
   };
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent
-        side="bottom"
-        className="mx-auto h-[70vh] max-w-md rounded-t-3xl p-0"
-      >
+      <SheetContent side="bottom" className="mx-auto h-[70vh] max-w-md rounded-t-3xl p-0">
         <SheetHeader className="border-b">
           <SheetTitle className="flex items-center gap-2">
             <span className="flex size-7 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-fuchsia-500 text-white">
@@ -61,8 +92,8 @@ export function AiChatSheet({
         <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4">
           {!chat || chat.messages.length === 0 ? (
             <Bubble role="assistant">
-              Cześć! Jestem Twoim asystentem dziennika. Zadaj pytanie o swój nastrój
-              lub poproś o pomysł na wpis. (wersja demonstracyjna)
+              Cześć! Jestem Twoim dziennikowym przyjacielem. Mogę pogadać o tym, jak się
+              czujesz, i zajrzeć do Twoich wpisów. O co chcesz zapytać?
             </Bubble>
           ) : (
             chat.messages.map((m) => (
@@ -70,6 +101,11 @@ export function AiChatSheet({
                 {m.text}
               </Bubble>
             ))
+          )}
+          {sending && (
+            <div className="flex items-center gap-1 self-start rounded-2xl bg-muted px-3 py-2.5">
+              <Dot /> <Dot delay="0.15s" /> <Dot delay="0.3s" />
+            </div>
           )}
         </div>
 
@@ -82,13 +118,14 @@ export function AiChatSheet({
             }}
             placeholder="Napisz wiadomość…"
             className="rounded-full"
+            disabled={sending}
           />
           <Button
             size="icon"
             className="shrink-0 rounded-full"
             aria-label="Wyślij"
             onClick={send}
-            disabled={!input.trim()}
+            disabled={!input.trim() || sending}
           >
             <Send className="size-4" />
           </Button>
@@ -98,11 +135,20 @@ export function AiChatSheet({
   );
 }
 
+function Dot({ delay = "0s" }: { delay?: string }) {
+  return (
+    <span
+      className="size-2 animate-bounce rounded-full bg-muted-foreground/60"
+      style={{ animationDelay: delay }}
+    />
+  );
+}
+
 function Bubble({ role, children }: { role: "user" | "assistant"; children: React.ReactNode }) {
   return (
     <div
       className={cn(
-        "max-w-[80%] rounded-2xl px-3 py-2 text-sm",
+        "max-w-[80%] rounded-2xl px-3 py-2 text-sm whitespace-pre-wrap",
         role === "user"
           ? "self-end bg-primary text-primary-foreground"
           : "self-start bg-muted",
