@@ -34,29 +34,14 @@ export async function updateName(userId: string, name: string): Promise<void> {
   if (error) throw error;
 }
 
-/** Wgrywa awatar do bucketu `avatars/{userId}/avatar` i zapisuje URL w profilu. */
-export async function uploadAvatar(userId: string, file: File): Promise<string> {
-  const path = `${userId}/avatar`;
-  const { error: upErr } = await supabase.storage
-    .from("avatars")
-    .upload(path, file, { upsert: true, contentType: file.type });
-  if (upErr) throw upErr;
-
-  const { data } = supabase.storage.from("avatars").getPublicUrl(path);
-  const url = `${data.publicUrl}?v=${Date.now()}`; // cache-bust po nadpisaniu
+/** Zapisuje awatar (data URL) w kolumnie profilu, lub czyści gdy null. */
+export async function updateAvatar(
+  userId: string,
+  avatarUrl: string | null,
+): Promise<void> {
   const { error } = await supabase
     .from("profiles")
-    .update({ avatar_url: url })
-    .eq("id", userId);
-  if (error) throw error;
-  return url;
-}
-
-export async function removeAvatar(userId: string): Promise<void> {
-  await supabase.storage.from("avatars").remove([`${userId}/avatar`]);
-  const { error } = await supabase
-    .from("profiles")
-    .update({ avatar_url: null })
+    .update({ avatar_url: avatarUrl })
     .eq("id", userId);
   if (error) throw error;
 }

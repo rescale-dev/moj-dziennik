@@ -1,6 +1,7 @@
 "use client";
 
 import { create } from "zustand";
+import { fileToResizedDataUrl } from "../image";
 import * as api from "../supabase/profile";
 import type { User } from "../types";
 
@@ -31,13 +32,14 @@ export const useUserStore = create<UserState>((set, get) => ({
   setAvatarFile: async (file) => {
     const { id } = get().user;
     if (!id) return;
-    const url = await api.uploadAvatar(id, file);
-    set({ user: { ...get().user, avatarUrl: url } });
+    const dataUrl = await fileToResizedDataUrl(file);
+    await api.updateAvatar(id, dataUrl);
+    set({ user: { ...get().user, avatarUrl: dataUrl } });
   },
   removeAvatar: async () => {
     const { id } = get().user;
     if (!id) return;
-    await api.removeAvatar(id);
+    await api.updateAvatar(id, null);
     set({ user: { ...get().user, avatarUrl: undefined } });
   },
 }));

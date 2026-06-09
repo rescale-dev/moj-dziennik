@@ -1,9 +1,9 @@
 "use client";
 
-import { Bell, Camera, ChevronRight, Cloud, Lock, LogOut, Trash2 } from "lucide-react";
+import { Bell, Camera, ChevronRight, Cloud, Lock, LogIn, Trash2 } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
-import { useAuth } from "@/components/auth/auth-provider";
+import { AccountSheet } from "@/components/profile/account-sheet";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,8 +32,8 @@ export function ProfileSheet({
   const setName = useUserStore((s) => s.setName);
   const setAvatarFile = useUserStore((s) => s.setAvatarFile);
   const removeAvatar = useUserStore((s) => s.removeAvatar);
-  const { email, signOut } = useAuth();
   const fileRef = useRef<HTMLInputElement>(null);
+  const [accountOpen, setAccountOpen] = useState(false);
 
   // Synchronizacja pola z profilem po załadowaniu (wzorzec setState-w-renderze).
   const [name, setLocalName] = useState(user.name);
@@ -43,7 +43,7 @@ export function ProfileSheet({
     setLocalName(user.name);
   }
 
-  const initials = (user.name || email || "?").trim().slice(0, 2).toUpperCase();
+  const initials = (user.name || "?").trim().slice(0, 2).toUpperCase();
 
   const saveName = async () => {
     const trimmed = name.trim();
@@ -150,20 +150,17 @@ export function ProfileSheet({
 
         <div className="space-y-1 px-4 pb-2">
           <p className="px-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Konto
+            Ustawienia
           </p>
-          <div className="flex items-center gap-3 rounded-xl p-3">
-            <span className="flex-1 truncate text-sm text-muted-foreground">{email}</span>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="rounded-full text-muted-foreground"
-              onClick={signOut}
-            >
-              <LogOut className="size-4" />
-              Wyloguj
-            </Button>
-          </div>
+          <button
+            type="button"
+            onClick={() => setAccountOpen(true)}
+            className="flex w-full items-center gap-3 rounded-xl p-3 text-left transition-colors hover:bg-muted"
+          >
+            <LogIn className="size-5 text-muted-foreground" />
+            <span className="flex-1 text-sm font-medium">Logowanie i konto</span>
+            <ChevronRight className="size-4 text-muted-foreground" />
+          </button>
           {SETTINGS.map(({ icon: Icon, label }) => (
             <button
               key={label}
@@ -177,6 +174,8 @@ export function ProfileSheet({
             </button>
           ))}
         </div>
+
+        <AccountSheet open={accountOpen} onOpenChange={setAccountOpen} />
       </SheetContent>
     </Sheet>
   );

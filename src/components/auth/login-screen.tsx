@@ -11,6 +11,7 @@ type Mode = "signin" | "signup";
 
 export function LoginScreen() {
   const [mode, setMode] = useState<Mode>("signin");
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -24,7 +25,11 @@ export function LoginScreen() {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
       } else {
-        const { data, error } = await supabase.auth.signUp({ email, password });
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: { data: { name: name.trim() } },
+        });
         if (error) throw error;
         if (!data.session) {
           toast.success("Konto utworzone. Sprawdź skrzynkę i potwierdź e-mail, aby się zalogować.");
@@ -52,6 +57,17 @@ export function LoginScreen() {
       </div>
 
       <form onSubmit={submit} className="space-y-3">
+        {mode === "signup" && (
+          <Input
+            type="text"
+            autoComplete="name"
+            placeholder="Imię"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="rounded-xl"
+            required
+          />
+        )}
         <Input
           type="email"
           inputMode="email"
