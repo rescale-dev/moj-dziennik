@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, CalendarDays } from "lucide-react";
+import { Bell, CalendarDays, FileText } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -27,6 +27,17 @@ export function HomeHeader() {
           <h1 className="truncate text-4xl font-bold tracking-tight">{user.name}</h1>
         </div>
         <div className="flex shrink-0 items-center gap-1">
+          <Button
+            asChild
+            variant="ghost"
+            size="icon"
+            className="rounded-full"
+            aria-label="Dokumentacja API"
+          >
+            <Link href="/docs">
+              <FileText className="size-5" />
+            </Link>
+          </Button>
           <Button
             variant="ghost"
             size="icon"
