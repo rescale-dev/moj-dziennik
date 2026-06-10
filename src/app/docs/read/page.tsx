@@ -34,7 +34,7 @@ export default function DocsReadPage() {
       <DocH2 id="przyklad">Przykład żądania</DocH2>
       <CodeBlock
         language="bash"
-        code={`curl https://moj-dziennik.vercel.app/api/v1/entries?date=2026-06-10 \\
+        code={`curl https://moj-dziennik-delta.vercel.app/api/v1/entries?date=2026-06-10 \\
   -H "Authorization: Bearer mojd_xxx"`}
       />
 

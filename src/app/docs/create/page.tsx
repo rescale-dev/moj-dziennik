@@ -40,7 +40,7 @@ export default function DocsCreatePage() {
       <DocH2 id="przyklad">Przykład żądania</DocH2>
       <CodeBlock
         language="bash"
-        code={`curl -X POST https://moj-dziennik.vercel.app/api/v1/entries \\
+        code={`curl -X POST https://moj-dziennik-delta.vercel.app/api/v1/entries \\
   -H "Authorization: Bearer mojd_xxx" \\
   -H "Content-Type: application/json" \\
   -d '{
