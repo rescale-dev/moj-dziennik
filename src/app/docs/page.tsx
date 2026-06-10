@@ -14,7 +14,7 @@ export default function DocsOverviewPage() {
 
       <DocH2 id="bazowy-url">Bazowy URL</DocH2>
       <DocP>Wszystkie endpointy są dostępne pod prefiksem `/api/v1`.</DocP>
-      <CodeBlock language="text" code={`https://moj-dziennik.vercel.app/api/v1`} />
+      <CodeBlock language="text" code={`https://moj-dziennik-delta.vercel.app/api/v1`} />
       <DocP>Lokalnie podczas developmentu: `http://localhost:3000/api/v1`.</DocP>
 
       <DocH2 id="autoryzacja">Autoryzacja</DocH2>
