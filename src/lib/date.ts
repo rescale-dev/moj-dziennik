@@ -58,6 +58,17 @@ export function dayWord(n: number): string {
   return n === 1 ? "dzień" : "dni";
 }
 
+/** Klucz dnia YYYY-MM-DD w strefie Polski (Europe/Warsaw), niezależnie od strefy serwera. */
+export function warsawDateKey(date = new Date()): string {
+  // en-CA daje format YYYY-MM-DD.
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Warsaw",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
+}
+
 /** Aktualna godzina w Polsce (Europe/Warsaw), niezależnie od strefy urządzenia. */
 export function warsawHour(date = new Date()): number {
   const s = new Intl.DateTimeFormat("en-GB", {

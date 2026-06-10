@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import { AuthGate } from "@/components/auth/auth-gate";
 import { AuthProvider } from "@/components/auth/auth-provider";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
@@ -44,9 +43,7 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <AuthProvider>
-            <div className="mx-auto flex min-h-dvh w-full max-w-md flex-col bg-background">
-              <AuthGate>{children}</AuthGate>
-            </div>
+            {children}
             <Toaster position="top-center" richColors />
           </AuthProvider>
         </ThemeProvider>
