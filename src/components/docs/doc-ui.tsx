@@ -1,21 +1,29 @@
 import { Fragment } from "react";
 import { cn } from "@/lib/utils";
 
-/** Renderuje tekst, zamieniając `fragmenty w grawisach` na stylizowany inline-code. */
+/** Renderuje tekst: `kod` → inline-code, **tekst** → pogrubienie. */
 function withInlineCode(children: React.ReactNode): React.ReactNode {
   if (typeof children !== "string") return children;
-  return children.split(/(`[^`]+`)/g).map((part, i) =>
-    part.startsWith("`") && part.endsWith("`") ? (
-      <code
-        key={i}
-        className="rounded bg-muted px-1.5 py-0.5 font-mono text-[0.85em] text-foreground"
-      >
-        {part.slice(1, -1)}
-      </code>
-    ) : (
-      <Fragment key={i}>{part}</Fragment>
-    ),
-  );
+  return children.split(/(`[^`]+`|\*\*[^*]+\*\*)/g).map((part, i) => {
+    if (part.startsWith("`") && part.endsWith("`")) {
+      return (
+        <code
+          key={i}
+          className="rounded bg-muted px-1.5 py-0.5 font-mono text-[0.85em] text-foreground"
+        >
+          {part.slice(1, -1)}
+        </code>
+      );
+    }
+    if (part.startsWith("**") && part.endsWith("**")) {
+      return (
+        <strong key={i} className="font-semibold text-foreground">
+          {part.slice(2, -2)}
+        </strong>
+      );
+    }
+    return <Fragment key={i}>{part}</Fragment>;
+  });
 }
 
 type Method = "GET" | "POST" | "PUT" | "DELETE";
