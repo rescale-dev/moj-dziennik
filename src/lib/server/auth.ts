@@ -18,12 +18,10 @@ export async function sha256Hex(input: string): Promise<string> {
 }
 
 /**
- * Weryfikuje token API z nagłówka `Authorization: Bearer <token>`.
- * Zwraca `null`, gdy brak/zły/odwołany token — wtedy route oddaje 401.
+ * Weryfikuje surowy token API (`mojd_…`). Zwraca `null`, gdy brak/zły/odwołany.
+ * Współdzielone przez REST (resolveToken) i MCP (verifyToken).
  */
-export async function resolveToken(req: Request): Promise<AuthContext | null> {
-  const header = req.headers.get("Authorization") ?? "";
-  const token = header.startsWith("Bearer ") ? header.slice(7).trim() : "";
+export async function resolveApiToken(token: string | undefined): Promise<AuthContext | null> {
   if (!token) return null;
 
   const admin = createAdminClient();
@@ -44,6 +42,13 @@ export async function resolveToken(req: Request): Promise<AuthContext | null> {
     .eq("id", data.id);
 
   return { userId: data.user_id as string, admin };
+}
+
+/** Odczytuje token z nagłówka `Authorization: Bearer <token>` i weryfikuje go. */
+export async function resolveToken(req: Request): Promise<AuthContext | null> {
+  const header = req.headers.get("Authorization") ?? "";
+  const token = header.startsWith("Bearer ") ? header.slice(7).trim() : "";
+  return resolveApiToken(token);
 }
 
 /** Standardowa odpowiedź 401 dla braku/złego tokena. */
