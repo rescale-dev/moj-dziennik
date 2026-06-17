@@ -30,15 +30,20 @@ export default function DocsOverviewPage() {
       </DocP>
 
       <DocH2 id="token">Jak uzyskać token</DocH2>
-      <DocP>Token generuje się skryptem po stronie serwera (wymaga `SUPABASE_SECRET_KEY`):</DocP>
-      <CodeBlock
-        language="bash"
-        code={`node scripts/issue-api-token.mjs <user_id> "moj-skrypt"`}
-      />
       <DocP>
-        Skrypt wypisze token dokładnie raz — zapisz go bezpiecznie. Aby unieważnić token, ustaw
-        `revoked = true` w tabeli `api_tokens`.
+        Najprościej: kliknij **„Token API”** na górnym pasku tej dokumentacji (musisz być zalogowany
+        w aplikacji) i skopiuj wygenerowany token. Pokazujemy go tylko raz — w bazie trzymamy wyłącznie
+        jego skrót.
       </DocP>
+      <DocP>
+        Token jest przypisany do Twojego konta. Aby go unieważnić, ustaw `revoked = true` w tabeli
+        `api_tokens`.
+      </DocP>
+      <DocP>
+        Alternatywnie, do automatyzacji po stronie serwera, możesz wygenerować token z CLI (wymaga
+        `SUPABASE_SECRET_KEY`):
+      </DocP>
+      <CodeBlock language="bash" code={`node scripts/issue-api-token.mjs <user_id> "etykieta"`} />
 
       <DocH2 id="format-bledow">Format błędów</DocH2>
       <DocP>Błędy zwracane są jako JSON z polem `error` i odpowiednim kodem HTTP.</DocP>
