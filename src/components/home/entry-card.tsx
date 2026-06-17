@@ -22,6 +22,7 @@ import {
 import { formatTime } from "@/lib/date";
 import { getMood } from "@/lib/moods";
 import { useEntriesStore } from "@/lib/store/entries";
+import { usePhotoUrls } from "@/lib/supabase/storage";
 import { useUiStore } from "@/lib/store/ui";
 import type { Entry } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -31,6 +32,7 @@ export function EntryCard({ entry }: { entry: Entry }) {
   const removeEntry = useEntriesStore((s) => s.removeEntry);
   const openEditEntry = useUiStore((s) => s.openEditEntry);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const photoUrls = usePhotoUrls(entry.photoPaths);
 
   return (
     <>
@@ -69,13 +71,25 @@ export function EntryCard({ entry }: { entry: Entry }) {
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
+          {photoUrls.length > 0 && (
+            <div className="-mx-1 mt-1 flex gap-2 overflow-x-auto pb-1">
+              {photoUrls.map((url, i) => (
+                <img
+                  key={entry.photoPaths[i]}
+                  src={url}
+                  alt=""
+                  className="h-28 w-auto max-w-[60vw] shrink-0 rounded-xl object-cover"
+                />
+              ))}
+            </div>
+          )}
           {entry.contentText ? (
             <p className="mt-0.5 line-clamp-2 break-words text-sm text-muted-foreground">
               {entry.contentText}
             </p>
-          ) : (
+          ) : entry.photoPaths.length === 0 ? (
             <p className="mt-0.5 text-sm italic text-muted-foreground/70">Bez treści</p>
-          )}
+          ) : null}
           <span className="mt-1 block text-xs text-muted-foreground">
             {formatTime(entry.createdAt)}
           </span>

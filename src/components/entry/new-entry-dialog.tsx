@@ -1,7 +1,8 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -13,12 +14,21 @@ import {
 } from "@/components/ui/dialog";
 import { formatFullDate, parseKey } from "@/lib/date";
 import { useEntry } from "@/lib/hooks";
+import { resizeFileForUpload } from "@/lib/image";
 import { useEntriesStore } from "@/lib/store/entries";
+import {
+  createSignedUrls,
+  deleteEntryPhotos,
+  uploadEntryPhoto,
+} from "@/lib/supabase/storage";
 import { useUiStore } from "@/lib/store/ui";
 import { computeStreak, reachedMilestone } from "@/lib/streak";
 import type { Mood } from "@/lib/types";
+import { supabase } from "@/lib/supabase/client";
 import { MoodPicker } from "./mood-picker";
 import { type EditorChange, RichTextEditor } from "./rich-text-editor";
+
+type PhotoItem = { path: string; previewUrl: string };
 
 export function NewEntryDialog() {
   const open = useUiStore((s) => s.entryDialogOpen);
@@ -52,9 +62,55 @@ function EntryForm({
     text: editing?.contentText ?? "",
   });
 
-  const targetDate = editing ? editing.date : activeDate;
+  const [photos, setPhotos] = useState<PhotoItem[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const targetDate = editing ? editing.date : activeDate;
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id ?? null));
+  }, []);
+
+  // Załaduj podpisane URL-e dla istniejących zdjęć przy edycji
+  useEffect(() => {
+    if (!editing?.photoPaths.length) return;
+    createSignedUrls(editing.photoPaths).then((urls) => {
+      setPhotos(editing.photoPaths.map((path, i) => ({ path, previewUrl: urls[i] ?? "" })));
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleFiles = async (files: File[]) => {
+    if (!userId) { toast.error("Nie jesteś zalogowany"); return; }
+    setUploading(true);
+    try {
+      const newPhotos = await Promise.all(
+        files.map(async (file) => {
+          const compressed = await resizeFileForUpload(file);
+          const path = await uploadEntryPhoto(userId, compressed);
+          const [previewUrl] = await createSignedUrls([path]);
+          return { path, previewUrl: previewUrl ?? "" };
+        }),
+      );
+      setPhotos((prev) => [...prev, ...newPhotos]);
+    } catch {
+      toast.error("Nie udało się przesłać zdjęcia");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const removePhoto = async (path: string) => {
+    try {
+      await deleteEntryPhotos([path]);
+      setPhotos((prev) => prev.filter((p) => p.path !== path));
+    } catch {
+      toast.error("Nie udało się usunąć zdjęcia");
+    }
+  };
 
   const handleSave = async () => {
     if (!mood) {
@@ -62,16 +118,20 @@ function EntryForm({
       return;
     }
     const text = draft.current.text.trim();
-    const hasContent = text.length > 0;
-    const contentJSON = hasContent ? draft.current.json : null;
+    const photoPaths = photos.map((p) => p.path);
+    if (!text && !photoPaths.length) {
+      toast.error("Dodaj tekst lub zdjęcie");
+      return;
+    }
+    const contentJSON = text.length > 0 ? draft.current.json : null;
 
     setSaving(true);
     try {
       if (editing) {
-        await updateEntry(editing.id, { mood, contentJSON, contentText: text });
+        await updateEntry(editing.id, { mood, contentJSON, contentText: text, photoPaths });
         toast.success("Zapisano zmiany");
       } else {
-        await addEntry({ date: targetDate, mood, contentJSON, contentText: text });
+        await addEntry({ date: targetDate, mood, contentJSON, contentText: text, photoPaths });
         const dates = useEntriesStore.getState().entries.map((e) => e.date);
         const milestone = reachedMilestone(computeStreak(dates).current);
         toast.success(
@@ -100,11 +160,44 @@ function EntryForm({
         <MoodPicker value={mood} onChange={setMood} />
       </div>
 
+      {photos.length > 0 && (
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          {photos.map(({ path, previewUrl }) => (
+            <div key={path} className="relative shrink-0">
+              <img
+                src={previewUrl}
+                alt=""
+                className="h-20 w-auto max-w-[50vw] rounded-xl object-cover"
+              />
+              <button
+                type="button"
+                aria-label="Usuń zdjęcie"
+                onClick={() => removePhoto(path)}
+                className="absolute -right-1.5 -top-1.5 flex size-5 items-center justify-center rounded-full bg-background shadow-md"
+              >
+                <X className="size-3" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        multiple
+        className="hidden"
+        onChange={(e) => {
+          if (e.target.files) handleFiles(Array.from(e.target.files));
+          e.target.value = "";
+        }}
+      />
+
       <RichTextEditor
         initialContent={editing?.contentJSON ?? null}
-        onChange={(change) => {
-          draft.current = change;
-        }}
+        onChange={(change) => { draft.current = change; }}
+        onPhotoRequest={() => fileInputRef.current?.click()}
       />
 
       <DialogFooter className="gap-2 sm:gap-2">
@@ -112,12 +205,16 @@ function EntryForm({
           variant="ghost"
           className="rounded-full"
           onClick={onDone}
-          disabled={saving}
+          disabled={saving || uploading}
         >
           Anuluj
         </Button>
-        <Button className="rounded-full" onClick={handleSave} disabled={saving}>
-          {saving ? "Zapisywanie…" : "Zapisz"}
+        <Button
+          className="rounded-full"
+          onClick={handleSave}
+          disabled={saving || uploading}
+        >
+          {uploading ? "Przesyłanie…" : saving ? "Zapisywanie…" : "Zapisz"}
         </Button>
       </DialogFooter>
     </>

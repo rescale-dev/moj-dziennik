@@ -7,6 +7,7 @@ export type EntryInput = {
   mood: Mood;
   contentJSON: JSONContent | null;
   contentText: string;
+  photoPaths?: string[];
 };
 
 /**

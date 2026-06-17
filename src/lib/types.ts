@@ -17,6 +17,8 @@ export type Entry = {
   contentJSON: JSONContent | null;
   /** Wersja tekstowa treści — podgląd na kafelku. */
   contentText: string;
+  /** Ścieżki plików w Supabase Storage (bucket entry-photos). */
+  photoPaths: string[];
 };
 
 /** Mock zalogowanego użytkownika (logowanie to placeholder w MVP). */

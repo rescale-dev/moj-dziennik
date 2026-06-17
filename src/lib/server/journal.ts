@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { type AgentMessage, runAgent } from "@/lib/ai/agent";
+import { generateEmbedding } from "@/lib/ai/embed";
 import { inferMood } from "@/lib/ai/mood";
 import { textToTiptapDoc } from "@/lib/ai/tiptap";
 import { warsawDateKey } from "@/lib/date";
@@ -33,6 +34,7 @@ export async function createEntry(
 ) {
   const text = (input.text ?? "").trim();
   if (!text) throw new JournalError(400, "Pole `text` jest wymagane.");
+  if (text.length > 10_000) throw new JournalError(413, "Tekst nie może przekraczać 10 000 znaków.");
 
   const date = resolveDate(input.date);
 
@@ -61,6 +63,12 @@ export async function createEntry(
     console.error("[journal.createEntry] error:", error);
     throw new JournalError(500, "Nie udało się zapisać wpisu.");
   }
+
+  const embedding = await generateEmbedding(text);
+  if (embedding) {
+    await ctx.admin.from("entries").update({ embedding }).eq("id", data.id);
+  }
+
   return data;
 }
 
@@ -124,6 +132,7 @@ export async function askAgent(
 
   const question = (input.question ?? "").trim();
   if (!question) throw new JournalError(400, "Pole `question` jest wymagane.");
+  if (question.length > 2_000) throw new JournalError(413, "Pytanie nie może przekraczać 2 000 znaków.");
 
   const activeDate = resolveDate(input.date);
 
