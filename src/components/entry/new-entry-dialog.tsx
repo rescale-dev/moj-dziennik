@@ -16,13 +16,19 @@ import { formatFullDate, parseKey } from "@/lib/date";
 import { useEntry } from "@/lib/hooks";
 import { resizeFileForUpload } from "@/lib/image";
 import { useEntriesStore } from "@/lib/store/entries";
-import { deleteEntryPhotos, getPhotoUrl, uploadEntryPhoto } from "@/lib/supabase/storage";
+import {
+  createSignedUrls,
+  deleteEntryPhotos,
+  uploadEntryPhoto,
+} from "@/lib/supabase/storage";
 import { useUiStore } from "@/lib/store/ui";
 import { computeStreak, reachedMilestone } from "@/lib/streak";
 import type { Mood } from "@/lib/types";
 import { supabase } from "@/lib/supabase/client";
 import { MoodPicker } from "./mood-picker";
 import { type EditorChange, RichTextEditor } from "./rich-text-editor";
+
+type PhotoItem = { path: string; previewUrl: string };
 
 export function NewEntryDialog() {
   const open = useUiStore((s) => s.entryDialogOpen);
@@ -56,7 +62,7 @@ function EntryForm({
     text: editing?.contentText ?? "",
   });
 
-  const [photoPaths, setPhotoPaths] = useState<string[]>(editing?.photoPaths ?? []);
+  const [photos, setPhotos] = useState<PhotoItem[]>([]);
   const [uploading, setUploading] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -68,17 +74,28 @@ function EntryForm({
     supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id ?? null));
   }, []);
 
+  // Załaduj podpisane URL-e dla istniejących zdjęć przy edycji
+  useEffect(() => {
+    if (!editing?.photoPaths.length) return;
+    createSignedUrls(editing.photoPaths).then((urls) => {
+      setPhotos(editing.photoPaths.map((path, i) => ({ path, previewUrl: urls[i] ?? "" })));
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const handleFiles = async (files: File[]) => {
     if (!userId) { toast.error("Nie jesteś zalogowany"); return; }
     setUploading(true);
     try {
-      const paths = await Promise.all(
+      const newPhotos = await Promise.all(
         files.map(async (file) => {
           const compressed = await resizeFileForUpload(file);
-          return uploadEntryPhoto(userId, compressed);
+          const path = await uploadEntryPhoto(userId, compressed);
+          const [previewUrl] = await createSignedUrls([path]);
+          return { path, previewUrl: previewUrl ?? "" };
         }),
       );
-      setPhotoPaths((prev) => [...prev, ...paths]);
+      setPhotos((prev) => [...prev, ...newPhotos]);
     } catch {
       toast.error("Nie udało się przesłać zdjęcia");
     } finally {
@@ -89,7 +106,7 @@ function EntryForm({
   const removePhoto = async (path: string) => {
     try {
       await deleteEntryPhotos([path]);
-      setPhotoPaths((prev) => prev.filter((p) => p !== path));
+      setPhotos((prev) => prev.filter((p) => p.path !== path));
     } catch {
       toast.error("Nie udało się usunąć zdjęcia");
     }
@@ -101,8 +118,8 @@ function EntryForm({
       return;
     }
     const text = draft.current.text.trim();
-    const hasContent = text.length > 0 || photoPaths.length > 0;
-    if (!hasContent) {
+    const photoPaths = photos.map((p) => p.path);
+    if (!text && !photoPaths.length) {
       toast.error("Dodaj tekst lub zdjęcie");
       return;
     }
@@ -143,12 +160,12 @@ function EntryForm({
         <MoodPicker value={mood} onChange={setMood} />
       </div>
 
-      {photoPaths.length > 0 && (
+      {photos.length > 0 && (
         <div className="flex gap-2 overflow-x-auto pb-1">
-          {photoPaths.map((path) => (
+          {photos.map(({ path, previewUrl }) => (
             <div key={path} className="relative shrink-0">
               <img
-                src={getPhotoUrl(path)}
+                src={previewUrl}
                 alt=""
                 className="h-20 w-auto max-w-[50vw] rounded-xl object-cover"
               />

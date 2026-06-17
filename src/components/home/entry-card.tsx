@@ -22,7 +22,7 @@ import {
 import { formatTime } from "@/lib/date";
 import { getMood } from "@/lib/moods";
 import { useEntriesStore } from "@/lib/store/entries";
-import { getPhotoUrl } from "@/lib/supabase/storage";
+import { usePhotoUrls } from "@/lib/supabase/storage";
 import { useUiStore } from "@/lib/store/ui";
 import type { Entry } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -32,6 +32,7 @@ export function EntryCard({ entry }: { entry: Entry }) {
   const removeEntry = useEntriesStore((s) => s.removeEntry);
   const openEditEntry = useUiStore((s) => s.openEditEntry);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const photoUrls = usePhotoUrls(entry.photoPaths);
 
   return (
     <>
@@ -70,12 +71,12 @@ export function EntryCard({ entry }: { entry: Entry }) {
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
-          {entry.photoPaths.length > 0 && (
+          {photoUrls.length > 0 && (
             <div className="-mx-1 mt-1 flex gap-2 overflow-x-auto pb-1">
-              {entry.photoPaths.map((path) => (
+              {photoUrls.map((url, i) => (
                 <img
-                  key={path}
-                  src={getPhotoUrl(path)}
+                  key={entry.photoPaths[i]}
+                  src={url}
                   alt=""
                   className="h-28 w-auto max-w-[60vw] shrink-0 rounded-xl object-cover"
                 />
