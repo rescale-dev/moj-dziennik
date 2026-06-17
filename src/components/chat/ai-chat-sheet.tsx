@@ -80,8 +80,8 @@ export function AiChatSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="mx-auto h-[70vh] max-w-md rounded-t-3xl p-0">
-        <SheetHeader className="border-b">
+      <SheetContent side="bottom" className="mx-auto flex h-[70vh] max-w-md flex-col rounded-t-3xl p-0">
+        <SheetHeader className="shrink-0 border-b">
           <SheetTitle className="flex items-center gap-2">
             <span className="flex size-7 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-fuchsia-500 text-white">
               <Sparkles className="size-4" />
@@ -90,7 +90,7 @@ export function AiChatSheet({
           </SheetTitle>
         </SheetHeader>
 
-        <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4">
+        <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 py-3">
           {!chat || chat.messages.length === 0 ? (
             <Bubble role="assistant">
               Cześć! Jestem Twoim dziennikowym przyjacielem. Mogę pogadać o tym, jak się
