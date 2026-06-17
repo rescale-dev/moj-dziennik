@@ -1,5 +1,6 @@
 import { type Content, type FunctionCall, GoogleGenAI } from "@google/genai";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { generateEmbedding } from "./embed";
 import { type AgentEntry, buildSystemPrompt } from "./prompt";
 
 const MODEL = "gemini-2.5-flash";
@@ -60,7 +61,7 @@ const functionDeclarations = [
   },
 ];
 
-type Row = { date: string; mood: number; content_text: string };
+type Row = { date: string; mood: number; content_text: string; id?: string };
 
 const toResult = (rows: Row[] | null) =>
   (rows ?? []).map((r) => ({ date: r.date, mood: r.mood, text: r.content_text?.slice(0, 300) ?? "" }));
@@ -75,6 +76,25 @@ export async function runAgent(opts: RunAgentOptions): Promise<string> {
   if (!apiKey) throw new Error("Brak GEMINI_API_KEY");
 
   const { supabase, userId, activeDate, contextEntries, messages } = opts;
+
+  // Pre-search: hybrydowe wyszukiwanie na ostatnim pytaniu użytkownika przed wywołaniem modelu.
+  const lastUserText = messages.at(-1)?.text ?? "";
+  let retrievedEntries: AgentEntry[] = [];
+  if (lastUserText) {
+    const queryEmbedding = await generateEmbedding(lastUserText);
+    const { data: hits } = await supabase.rpc("match_entries_hybrid", {
+      p_user_id:     userId ?? null,
+      p_embedding:   queryEmbedding,
+      p_query:       lastUserText,
+      p_mood:        null,
+      p_match_count: 15,
+    });
+    if (hits) {
+      retrievedEntries = (hits as Array<{ date: string; mood: number; content_text: string }>).map(
+        (h) => ({ date: h.date, mood: h.mood, contentText: h.content_text?.slice(0, 400) ?? "" }),
+      );
+    }
+  }
 
   const scoped = <T>(q: T): T =>
     // Filtr po user_id tylko gdy mamy userId (service key bez RLS).
@@ -98,9 +118,30 @@ export async function runAgent(opts: RunAgentOptions): Promise<string> {
       return { entries: toResult(data as Row[]) };
     }
     if (name === "search_entries") {
+      const queryText = args.query ? String(args.query) : "";
+      const moodFilter = typeof args.mood === "number" ? args.mood : null;
+
+      const embedding = queryText ? await generateEmbedding(queryText) : null;
+
+      const { data: rpcData, error: rpcError } = await supabase.rpc(
+        "match_entries_hybrid",
+        {
+          p_user_id:     userId ?? null,
+          p_embedding:   embedding,
+          p_query:       queryText,
+          p_mood:        moodFilter,
+          p_match_count: 30,
+        },
+      );
+
+      if (!rpcError) {
+        return { entries: toResult(rpcData as Row[]) };
+      }
+
+      console.warn("[search_entries] RPC failed, falling back to ilike:", rpcError.message);
       let q = scoped(supabase.from("entries").select("date,mood,content_text"));
-      if (args.query) q = q.ilike("content_text", `%${String(args.query)}%`);
-      if (typeof args.mood === "number") q = q.eq("mood", args.mood);
+      if (queryText) q = q.ilike("content_text", `%${queryText}%`);
+      if (moodFilter !== null) q = q.eq("mood", moodFilter);
       const { data } = await q.order("date", { ascending: false }).limit(50);
       return { entries: toResult(data as Row[]) };
     }
@@ -108,7 +149,7 @@ export async function runAgent(opts: RunAgentOptions): Promise<string> {
   }
 
   const ai = new GoogleGenAI({ apiKey });
-  const systemInstruction = buildSystemPrompt(activeDate, contextEntries ?? []);
+  const systemInstruction = buildSystemPrompt(activeDate, contextEntries ?? [], retrievedEntries);
 
   // Retry przy przejściowych błędach Gemini (503 przeciążenie / 429 limit / 500).
   async function generate(contents: Content[]) {

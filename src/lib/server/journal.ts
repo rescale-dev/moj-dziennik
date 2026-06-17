@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { type AgentMessage, runAgent } from "@/lib/ai/agent";
+import { generateEmbedding } from "@/lib/ai/embed";
 import { inferMood } from "@/lib/ai/mood";
 import { textToTiptapDoc } from "@/lib/ai/tiptap";
 import { warsawDateKey } from "@/lib/date";
@@ -61,6 +62,12 @@ export async function createEntry(
     console.error("[journal.createEntry] error:", error);
     throw new JournalError(500, "Nie udało się zapisać wpisu.");
   }
+
+  const embedding = await generateEmbedding(text);
+  if (embedding) {
+    await ctx.admin.from("entries").update({ embedding }).eq("id", data.id);
+  }
+
   return data;
 }
 
