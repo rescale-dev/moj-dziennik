@@ -5,8 +5,21 @@ import { supabase } from "./client";
 
 const BUCKET = "entry-photos";
 
+const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"] as const;
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
+
 export async function uploadEntryPhoto(userId: string, file: File): Promise<string> {
-  const ext = file.name.split(".").pop() ?? "jpg";
+  if (file.size > MAX_FILE_SIZE) throw new Error("Zdjęcie nie może przekraczać 10 MB.");
+  if (!(ALLOWED_TYPES as readonly string[]).includes(file.type)) {
+    throw new Error("Dozwolone formaty: JPEG, PNG, WebP, GIF.");
+  }
+  const extMap: Record<string, string> = {
+    "image/jpeg": "jpg",
+    "image/png": "png",
+    "image/webp": "webp",
+    "image/gif": "gif",
+  };
+  const ext = extMap[file.type] ?? "jpg";
   const path = `${userId}/${crypto.randomUUID()}.${ext}`;
   const { error } = await supabase.storage.from(BUCKET).upload(path, file, {
     contentType: file.type,

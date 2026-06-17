@@ -6,6 +6,7 @@ export async function generateEmbedding(text: string): Promise<number[] | null> 
       method: "POST",
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({ model: "text-embedding-3-small", input: text }),
+      signal: AbortSignal.timeout(8000),
     });
     if (!res.ok) return null;
     const json = (await res.json()) as { data: { embedding: number[] }[] };
