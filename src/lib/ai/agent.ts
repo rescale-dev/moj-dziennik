@@ -82,10 +82,12 @@ export async function runAgent(opts: RunAgentOptions): Promise<string> {
   let retrievedEntries: AgentEntry[] = [];
   if (lastUserText) {
     const queryEmbedding = await generateEmbedding(lastUserText);
+    // Pre-fetch używa wyłącznie arm wektorowego (p_query = '') — pełne pytanie nie pasuje
+    // do ILIKE; arm tekstowy zostawiamy dla narzędzia search_entries z konkretnymi słowami.
     const { data: hits } = await supabase.rpc("match_entries_hybrid", {
       p_user_id:     userId ?? null,
       p_embedding:   queryEmbedding,
-      p_query:       lastUserText,
+      p_query:       "",
       p_mood:        null,
       p_match_count: 15,
     });
