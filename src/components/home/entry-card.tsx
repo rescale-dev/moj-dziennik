@@ -22,6 +22,7 @@ import {
 import { formatTime } from "@/lib/date";
 import { getMood } from "@/lib/moods";
 import { useEntriesStore } from "@/lib/store/entries";
+import { getPhotoUrl } from "@/lib/supabase/storage";
 import { useUiStore } from "@/lib/store/ui";
 import type { Entry } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -69,13 +70,25 @@ export function EntryCard({ entry }: { entry: Entry }) {
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
+          {entry.photoPaths.length > 0 && (
+            <div className="-mx-1 mt-1 flex gap-2 overflow-x-auto pb-1">
+              {entry.photoPaths.map((path) => (
+                <img
+                  key={path}
+                  src={getPhotoUrl(path)}
+                  alt=""
+                  className="h-28 w-auto max-w-[60vw] shrink-0 rounded-xl object-cover"
+                />
+              ))}
+            </div>
+          )}
           {entry.contentText ? (
             <p className="mt-0.5 line-clamp-2 break-words text-sm text-muted-foreground">
               {entry.contentText}
             </p>
-          ) : (
+          ) : entry.photoPaths.length === 0 ? (
             <p className="mt-0.5 text-sm italic text-muted-foreground/70">Bez treści</p>
-          )}
+          ) : null}
           <span className="mt-1 block text-xs text-muted-foreground">
             {formatTime(entry.createdAt)}
           </span>

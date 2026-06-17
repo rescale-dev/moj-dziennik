@@ -3,7 +3,7 @@
 import Placeholder from "@tiptap/extension-placeholder";
 import { EditorContent, type JSONContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
-import { Bold, Italic, List } from "lucide-react";
+import { Bold, ImagePlus, Italic, List } from "lucide-react";
 import { DictationButton } from "@/components/dictation-button";
 import { cn } from "@/lib/utils";
 
@@ -13,10 +13,12 @@ export function RichTextEditor({
   initialContent,
   placeholder = "Co się dzieje?",
   onChange,
+  onPhotoRequest,
 }: {
   initialContent: JSONContent | null;
   placeholder?: string;
   onChange: (change: EditorChange) => void;
+  onPhotoRequest?: () => void;
 }) {
   const editor = useEditor({
     immediatelyRender: false,
@@ -69,6 +71,16 @@ export function RichTextEditor({
           <List className="size-4" />
         </button>
         <span className="mx-1 h-5 w-px bg-border" />
+        {onPhotoRequest && (
+          <button
+            type="button"
+            aria-label="Dodaj zdjęcie"
+            className={toolBtn(false)}
+            onClick={onPhotoRequest}
+          >
+            <ImagePlus className="size-4" />
+          </button>
+        )}
         <DictationButton
           className="p-1.5"
           onText={(text) => editor.chain().focus().insertContent(`${text} `).run()}

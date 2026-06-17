@@ -3,6 +3,7 @@
 import { create } from "zustand";
 import type { EntryInput } from "../repository";
 import * as api from "../supabase/entries";
+import { deleteEntryPhotos } from "../supabase/storage";
 import type { Entry } from "../types";
 
 type Status = "idle" | "loading" | "ready" | "error";
@@ -40,7 +41,9 @@ export const useEntriesStore = create<EntriesState>((set, get) => ({
     set({ entries: get().entries.map((e) => (e.id === id ? updated : e)) });
   },
   removeEntry: async (id) => {
+    const entry = get().entries.find((e) => e.id === id);
     await api.deleteEntry(id);
+    if (entry?.photoPaths.length) await deleteEntryPhotos(entry.photoPaths);
     set({ entries: get().entries.filter((e) => e.id !== id) });
   },
 }));
