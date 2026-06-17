@@ -3,6 +3,7 @@
 import { Send, Sparkles } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
+import { DictationButton } from "@/components/dictation-button";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -110,13 +111,18 @@ export function AiChatSheet({
         </div>
 
         <div className="flex items-center gap-2 border-t p-3">
+          <DictationButton
+            className="size-9 shrink-0 rounded-full border"
+            title="Dyktuj pytanie"
+            onText={(text) => setInput((prev) => (prev ? `${prev} ${text}` : text))}
+          />
           <Input
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter") send();
             }}
-            placeholder="Napisz wiadomość…"
+            placeholder="Napisz lub dyktuj wiadomość…"
             className="rounded-full"
             disabled={sending}
           />
