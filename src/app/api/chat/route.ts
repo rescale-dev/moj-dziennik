@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { type AgentId, DEFAULT_AGENT_ID, getAgent, isPaidAgent } from "@/lib/agents";
 import { type AgentMessage, runAgent } from "@/lib/ai/agent";
 import type { AgentEntry } from "@/lib/ai/prompt";
 
@@ -8,6 +9,7 @@ type Body = {
   messages: AgentMessage[];
   activeDate: string;
   openDayEntries: AgentEntry[];
+  agentId?: AgentId;
 };
 
 export async function POST(req: Request) {
@@ -37,9 +39,26 @@ export async function POST(req: Request) {
     },
   );
 
+  const agentId = (body.agentId ?? DEFAULT_AGENT_ID) as AgentId;
+  const agent = getAgent(agentId);
+
+  // Bramka płatności: płatny agent dostępny tylko z uprawnieniem.
+  // Sprawdzane serwerowo, by nie dało się ominąć UI wołając endpoint wprost.
+  if (isPaidAgent(agent.id)) {
+    const { data: ent } = await supabase
+      .from("agent_entitlements")
+      .select("agent_id")
+      .eq("agent_id", agent.id)
+      .maybeSingle();
+    if (!ent) {
+      return Response.json({ error: `Agent „${agent.name}" wymaga zakupu.` }, { status: 402 });
+    }
+  }
+
   try {
     const reply = await runAgent({
       supabase,
+      agentId: agent.id,
       activeDate: body.activeDate,
       contextEntries: body.openDayEntries ?? [],
       messages: body.messages ?? [],

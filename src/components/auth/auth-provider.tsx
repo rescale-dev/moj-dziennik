@@ -2,6 +2,7 @@
 
 import type { Session, User as SupabaseUser } from "@supabase/supabase-js";
 import { createContext, useContext, useEffect, useState } from "react";
+import { useAgentStore } from "@/lib/store/agent";
 import { useChatStore } from "@/lib/store/chat";
 import { useEntriesStore } from "@/lib/store/entries";
 import { useUserStore } from "@/lib/store/user";
@@ -34,6 +35,7 @@ async function loadAll(user: SupabaseUser) {
     useUserStore.getState().load(user.id, fallbackName),
     useEntriesStore.getState().load(),
     useChatStore.getState().load(),
+    useAgentStore.getState().loadEntitlements(),
   ]);
 }
 
@@ -41,6 +43,7 @@ function clearAll() {
   useUserStore.getState().clear();
   useEntriesStore.getState().clear();
   useChatStore.getState().clear();
+  useAgentStore.getState().clear();
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {

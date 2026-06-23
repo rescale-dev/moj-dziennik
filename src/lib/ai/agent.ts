@@ -1,5 +1,6 @@
 import { type Content, type FunctionCall, GoogleGenAI } from "@google/genai";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { type AgentId, DEFAULT_AGENT_ID } from "../agents";
 import { generateEmbedding } from "./embed";
 import { type AgentEntry, buildSystemPrompt } from "./prompt";
 
@@ -17,6 +18,8 @@ export type RunAgentOptions = {
    * ograniczony tokenem użytkownika (RLS sam izoluje dane).
    */
   userId?: string;
+  /** Który agent odpowiada (różny prompt systemowy). Domyślnie darmowy. */
+  agentId?: AgentId;
   /** Dzień będący kontekstem rozmowy (YYYY-MM-DD). */
   activeDate: string;
   /** Wpisy z otwartego dnia, wstrzykiwane do promptu systemowego. */
@@ -76,6 +79,7 @@ export async function runAgent(opts: RunAgentOptions): Promise<string> {
   if (!apiKey) throw new Error("Brak GEMINI_API_KEY");
 
   const { supabase, userId, activeDate, contextEntries, messages } = opts;
+  const agentId = opts.agentId ?? DEFAULT_AGENT_ID;
 
   // Pre-search: hybrydowe wyszukiwanie na ostatnim pytaniu użytkownika przed wywołaniem modelu.
   const lastUserText = messages.at(-1)?.text ?? "";
@@ -84,13 +88,14 @@ export async function runAgent(opts: RunAgentOptions): Promise<string> {
     const queryEmbedding = await generateEmbedding(lastUserText);
     // Pre-fetch używa wyłącznie arm wektorowego (p_query = '') — pełne pytanie nie pasuje
     // do ILIKE; arm tekstowy zostawiamy dla narzędzia search_entries z konkretnymi słowami.
-    const { data: hits } = await supabase.rpc("match_entries_hybrid", {
+    const { data: hits, error: preErr } = await supabase.rpc("match_entries_hybrid", {
       p_user_id:     userId ?? null,
       p_embedding:   queryEmbedding,
       p_query:       "",
       p_mood:        null,
       p_match_count: 15,
     });
+    if (preErr) console.error("[agent.preFetch] match_entries_hybrid error:", preErr.message);
     if (hits) {
       retrievedEntries = (hits as Array<{ date: string; mood: number; content_text: string }>).map(
         (h) => ({ date: h.date, mood: h.mood, contentText: h.content_text?.slice(0, 400) ?? "" }),
@@ -151,7 +156,12 @@ export async function runAgent(opts: RunAgentOptions): Promise<string> {
   }
 
   const ai = new GoogleGenAI({ apiKey });
-  const systemInstruction = buildSystemPrompt(activeDate, contextEntries ?? [], retrievedEntries);
+  const systemInstruction = buildSystemPrompt(
+    agentId,
+    activeDate,
+    contextEntries ?? [],
+    retrievedEntries,
+  );
 
   // Retry przy przejściowych błędach Gemini (503 przeciążenie / 429 limit / 500).
   async function generate(contents: Content[]) {

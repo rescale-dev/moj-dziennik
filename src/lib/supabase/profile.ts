@@ -3,6 +3,8 @@ import { supabase } from "./client";
 
 type Row = { id: string; name: string; avatar_url: string | null };
 
+const COLS = "id,name,avatar_url";
+
 function toUser(r: Row): User {
   return { id: r.id, name: r.name, avatarUrl: r.avatar_url ?? undefined };
 }
@@ -14,7 +16,7 @@ export async function fetchOrCreateProfile(
 ): Promise<User> {
   const { data, error } = await supabase
     .from("profiles")
-    .select("id,name,avatar_url")
+    .select(COLS)
     .eq("id", userId)
     .maybeSingle();
   if (error) throw error;
@@ -23,7 +25,7 @@ export async function fetchOrCreateProfile(
   const { data: created, error: insertErr } = await supabase
     .from("profiles")
     .insert({ id: userId, name: fallbackName })
-    .select("id,name,avatar_url")
+    .select(COLS)
     .single();
   if (insertErr) throw insertErr;
   return toUser(created as Row);
