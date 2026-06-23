@@ -7,20 +7,29 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { AiChatSheet } from "@/components/chat/ai-chat-sheet";
 import { ChatHistorySheet } from "@/components/chat/chat-history-sheet";
+import { PaywallDialog } from "@/components/chat/paywall-dialog";
 import { useChatStore } from "@/lib/store/chat";
 import { useUiStore } from "@/lib/store/ui";
+import { useUserStore } from "@/lib/store/user";
 import { cn } from "@/lib/utils";
 
 export function BottomNav() {
   const pathname = usePathname();
   const openNewEntry = useUiStore((s) => s.openNewEntry);
   const createChat = useChatStore((s) => s.createChat);
+  const aiUnlocked = useUserStore((s) => s.user.aiUnlocked);
 
   const [aiOpen, setAiOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [paywallOpen, setPaywallOpen] = useState(false);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
 
   const startNewChat = async () => {
+    if (!aiUnlocked) {
+      setHistoryOpen(false);
+      setPaywallOpen(true);
+      return;
+    }
     try {
       const id = await createChat();
       setActiveChatId(id);
@@ -32,6 +41,11 @@ export function BottomNav() {
   };
 
   const openChat = (id: string) => {
+    if (!aiUnlocked) {
+      setHistoryOpen(false);
+      setPaywallOpen(true);
+      return;
+    }
     setActiveChatId(id);
     setHistoryOpen(false);
     setAiOpen(true);
@@ -108,6 +122,7 @@ export function BottomNav() {
         onOpenChat={openChat}
         onNewChat={startNewChat}
       />
+      <PaywallDialog open={paywallOpen} onOpenChange={setPaywallOpen} />
     </>
   );
 }

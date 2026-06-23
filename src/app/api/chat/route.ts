@@ -37,6 +37,16 @@ export async function POST(req: Request) {
     },
   );
 
+  // Bramka płatności: Agent AI dostępny tylko po jednorazowej opłacie.
+  // Sprawdzane serwerowo, by nie dało się ominąć UI wołając endpoint wprost.
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("ai_unlocked")
+    .single();
+  if (!profile?.ai_unlocked) {
+    return Response.json({ error: "Agent AI wymaga opłaty." }, { status: 402 });
+  }
+
   try {
     const reply = await runAgent({
       supabase,
