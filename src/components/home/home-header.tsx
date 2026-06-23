@@ -4,6 +4,7 @@ import { Bell, CalendarDays, FileText } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
+import { AgentControls } from "@/components/agents/agent-controls";
 import { ProfileSheet } from "@/components/profile/profile-sheet";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -27,6 +28,7 @@ export function HomeHeader() {
           <h1 className="truncate text-4xl font-bold tracking-tight">{user.name}</h1>
         </div>
         <div className="flex shrink-0 items-center gap-1">
+          <AgentControls />
           <Button
             asChild
             variant="ghost"

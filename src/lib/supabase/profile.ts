@@ -1,17 +1,12 @@
 import type { User } from "../types";
 import { supabase } from "./client";
 
-type Row = { id: string; name: string; avatar_url: string | null; ai_unlocked: boolean };
+type Row = { id: string; name: string; avatar_url: string | null };
 
-const COLS = "id,name,avatar_url,ai_unlocked";
+const COLS = "id,name,avatar_url";
 
 function toUser(r: Row): User {
-  return {
-    id: r.id,
-    name: r.name,
-    avatarUrl: r.avatar_url ?? undefined,
-    aiUnlocked: r.ai_unlocked ?? false,
-  };
+  return { id: r.id, name: r.name, avatarUrl: r.avatar_url ?? undefined };
 }
 
 /** Pobiera profil; gdy nie istnieje, tworzy go z domyślną nazwą. */
@@ -34,17 +29,6 @@ export async function fetchOrCreateProfile(
     .single();
   if (insertErr) throw insertErr;
   return toUser(created as Row);
-}
-
-/** Świeże pobranie profilu (np. po powrocie z płatności). */
-export async function fetchProfile(userId: string): Promise<User | null> {
-  const { data, error } = await supabase
-    .from("profiles")
-    .select(COLS)
-    .eq("id", userId)
-    .maybeSingle();
-  if (error) throw error;
-  return data ? toUser(data as Row) : null;
 }
 
 export async function updateName(userId: string, name: string): Promise<void> {

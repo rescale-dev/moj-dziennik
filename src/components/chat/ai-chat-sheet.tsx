@@ -12,7 +12,9 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { getAgent } from "@/lib/agents";
 import { useDayEntries } from "@/lib/hooks";
+import { useAgentStore } from "@/lib/store/agent";
 import { useChatStore } from "@/lib/store/chat";
 import { useUiStore } from "@/lib/store/ui";
 import { supabase } from "@/lib/supabase/client";
@@ -32,6 +34,8 @@ export function AiChatSheet({
   const chat = useMemo(() => chats.find((c) => c.id === chatId), [chats, chatId]);
   const activeDate = useUiStore((s) => s.activeDate);
   const dayEntries = useDayEntries(activeDate);
+  const selectedAgentId = useAgentStore((s) => s.selectedAgentId);
+  const agent = getAgent(selectedAgentId);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
 
@@ -62,6 +66,7 @@ export function AiChatSheet({
         body: JSON.stringify({
           messages: [...history, { role: "user", text }],
           activeDate,
+          agentId: selectedAgentId,
           openDayEntries: dayEntries.map((e) => ({
             mood: e.mood,
             contentText: e.contentText,
@@ -83,18 +88,24 @@ export function AiChatSheet({
       <SheetContent side="bottom" className="mx-auto flex h-[70vh] max-w-md flex-col rounded-t-3xl p-0">
         <SheetHeader className="shrink-0 border-b">
           <SheetTitle className="flex items-center gap-2">
-            <span className="flex size-7 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-fuchsia-500 text-white">
+            <span
+              className={cn(
+                "flex size-7 items-center justify-center rounded-full bg-gradient-to-br text-white",
+                agent.accent,
+              )}
+            >
               <Sparkles className="size-4" />
             </span>
-            Asystent AI
+            {agent.name}
           </SheetTitle>
         </SheetHeader>
 
         <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 py-3">
           {!chat || chat.messages.length === 0 ? (
             <Bubble role="assistant">
-              Cześć! Jestem Twoim dziennikowym przyjacielem. Mogę pogadać o tym, jak się
-              czujesz, i zajrzeć do Twoich wpisów. O co chcesz zapytać?
+              {selectedAgentId === "musk"
+                ? "Bez wstępów. Powiedz, z czym jest problem — zajrzę do Twoich wpisów i powiem, co z tym zrobić."
+                : "Cześć! Jestem Twoim dziennikowym przyjacielem. Mogę pogadać o tym, jak się czujesz, i zajrzeć do Twoich wpisów. O co chcesz zapytać?"}
             </Bubble>
           ) : (
             chat.messages.map((m) => (

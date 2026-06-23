@@ -26,8 +26,6 @@ export type User = {
   id: string;
   name: string;
   avatarUrl?: string;
-  /** Czy użytkownik wykupił dostęp do Agenta AI (jednorazowa opłata). */
-  aiUnlocked: boolean;
 };
 
 /** Wyliczony stan serii (streak). */
